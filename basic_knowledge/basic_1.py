@@ -257,7 +257,38 @@ db.hgd.find({"describe": "mp3"}).limit(50).skip(50).sort({"price": -1})
 # 调用getLastError可以知道索引是否创建成功或者失败的原因
 
 # 修改索引
-db.hgd.dropIndex("x_1_y_1")
+# db.hgd.dropIndex("x_1_y_1")
 # 如果创建索引 ，或阻塞数据库的读请求和写请求，  如果希望能继续写请求和读请求可以使用background选项
 # 在已有的文档上创建索引比新创建索引在插入文档快一点。
+
+# 创建固定集合 10000字节的固定集合 文档数量max等于10
+# db.hgd.createCollection("my_collection", {"capped": true, "size": 10000, "max": 10})
+
+# 把普通集合变成固定集合
+# db.runCommand({"convertToCapped": "test", "size": 10000})
+# 自然排序 $natural
+# db.my_collection.find().sort({"natural": -1})
+# 没有_id索引的集合
+# 如果在调用createCollection创建集合时指定autoIndexId选项为false 此集合不能被复制
+
+# TTL索引 生命周期索引 TTL索引不能是复合索引 可以像普通索引一样排序和查询
+# 在ensureIndex中指定expireAfterSecs选项就可以创建一个TTL索引
+# db.hgd.ensureIndex({"lastUpdated": 1}, {"expireAfterSecs": 60 * 60 * 24})
+# 修改有限期
+# db.runCommand({"collMod": "someapp.cache", "expireAfterSecs": 3600})
+
+# 全文本索引
+# db.adminCommand({"setParameter": 1, "textSearchEnabled": true})
+# 应用
+# db.hgd.ensureIndex({"title": "text"})
+# db.runCommand({"text": "hn", "search": "ask hn"})
+# 一个集合上最多只能有一个全文本索引，但全文本索引可以包含多个字段
+# db.hgd.ensureIndex({"title": "text", "desc": "text", "author": "text"})
+
+# 每个字段指定不同的权重来控制不同字段的相对重要性 权重的默认值是1
+# db.hgd.ensureIndex({"title": "text", "desc": "text", "author": "text"}, {"weights": {"title": 3, "author": 2}})
+
+# whatever可以指代任何东西，可以使用“$**”在文档的所有字符串字段上创建全文本索引
+# db.hgd.ensureIndex({"whatever": "text"}, {"weights": {"title": 3, "author": 1, "$**": 2}})
+
 
