@@ -8,6 +8,8 @@ Created on 2017年5月14日
 from pymongo import MongoClient
 import datetime
 import random
+import gridfs
+from ConfigObject.tests.config import filename
 
 
 client = MongoClient()
@@ -96,15 +98,15 @@ post = {
 # db.blog.findOne(criteria, {"comments": {"$slice": [23, 10]}})
 
 #返回第一个匹配的文档，第一条评论被返回 
-db.blog.find({"comments.name": "bob"}, {"comments.$": 1})
+# db.blog.find({"comments.name": "bob"}, {"comments.$": 1})
 
 # $eleMatch
-db.blog.find({"x": {"$eleMatch": {"$gt": 10, "$lt": 20}}})
-db.blog.find({"x": {"$gt": 10, "$lt": 20}}).min({"x": 10}).max({"x": 20})
+# db.blog.find({"x": {"$eleMatch": {"$gt": 10, "$lt": 20}}})
+# db.blog.find({"x": {"$gt": 10, "$lt": 20}}).min({"x": 10}).max({"x": 20})
 
 # 查询内嵌文档
-db.hgd.find({"name.first": "hou", "name.last": "dong"})
-db.hgd.find({"comments": {"$elemMatch": {"author": "joe", "score": {"$gte": 5}}}})
+# db.hgd.find({"name.first": "hou", "name.last": "dong"})
+# db.hgd.find({"comments": {"$elemMatch": {"author": "joe", "score": {"$gte": 5}}}})
 
 # mongod --dbpath  --noscripting
 
@@ -112,9 +114,9 @@ db.hgd.find({"comments": {"$elemMatch": {"author": "joe", "score": {"$gte": 5}}}
 # skip(3)   忽略前3个
 # sort("username": 1, "age": -1)  # 1表示升序  -1 表示降序
 # 第一页
-db.hgd.find({"describe": "mp3"}).limit(50).sort({"price": -1})
+# db.hgd.find({"describe": "mp3"}).limit(50).sort({"price": -1})
 # 第二页
-db.hgd.find({"describe": "mp3"}).limit(50).skip(50).sort({"price": -1})
+# db.hgd.find({"describe": "mp3"}).limit(50).skip(50).sort({"price": -1})
 # db.hgd.find(criteria).limit(100)
 # db.hgd.find(criteria).skip(100).limit(100)
 # db.hgd.find(criteria).skip(200).limit(100)
@@ -290,5 +292,69 @@ db.hgd.find({"describe": "mp3"}).limit(50).skip(50).sort({"price": -1})
 
 # whatever可以指代任何东西，可以使用“$**”在文档的所有字符串字段上创建全文本索引
 # db.hgd.ensureIndex({"whatever": "text"}, {"weights": {"title": 3, "author": 1, "$**": 2}})
+
+# 搜索语法
+# db.runCommand({text: "hn", search:  "\"ask hn\""})
+# 这会精确搜索"ask hn"这个短语，也会可选地搜索"ipod"
+# db.runCommand({text: "hn", search:  "\"ask hn\" ipod"})
+# db.runCommand({text: "hn", search: "-startup vc"})
+# 这样就会返回匹配vc，但是不包含"startup"这个词的文档
+# 优化全文本搜索
+# 前缀和全文本字段组成的复合索引
+# db.hgd.ensureIndex({"date": 1, "post": "text"})
+# 后缀和全文本字段组成的复合索引
+# db.hgd.ensureIndex({"post": "text", "author": 1})
+# db.hgd.ensureIndex({"date": 1, "post": "text", "author": 1})
+
+# 在其他语言中搜索
+# db.hgd.ensureIndex({"profil": "text", "interets": "text"}, {"default_language": "french"})
+# db.hgd.insert({"username": "hou", "profile": "Bork de bork", language: "swedish"})
+
+# 地理空间索引  2dsphere用于地球表面的地图
+# db.world.ensureIndex({"loc": "2dsphere"})
+
+# 地理空间查找的类型
+# var eastVillage = {
+#     "type": "Polygon", # 多边形
+#     "coordinates": [
+#         [-73.99999, 40.999999],
+#         [-73.8888, 40.88888],
+#         [-73.7777, 40.7777],
+#         [-73.6666, 40.6666]
+#     ]
+# }
+# db.open.street.map.find({"loc": {"$geoIntersects": {"$geometry": eastVillage}}})
+# db.open.street.map.find({"loc": {"$within": {"$geometry": eastVillage}}})
+# db.open.street.map.find({"loc": {"near": {"$geometry": eastVillage}}})
+
+# 复合地理空间索引
+# db.open.street.map.ensureIndex({"tag": 1, "location": "2dsphere"})
+# 可以快速的找到East Village内的披萨店
+# db.open.street.map.find({"loc": {"$within": {"$geometry": eastVillage}}, "tags": "pizza"})
+
+# 2d索引
+# db.hgd.ensureIndex({"title": "2d"})
+# 设置区域大小
+# db.hgd.ensureIndex({"light-years": "2d"}, {"min": -1000, "max": 1000})
+# db.hgd.find({"tile": {"$near": [20, 21]}}).limit(10)
+# db.hgd.find({"tile": {"$within": {"$box": [[10, 20], [15, 30]]}}})
+# db.hgd.find({"tile": {"$within": {"$center": [[12, 25], 5]}}})
+# db.hgd.find({"tile": {"$within": {"$polygon": [[0, 20], [10, 0], [-10, 0]]}}})
+
+# 使用GridFS存储文件 (以二进制的方式存储大文件)
+# echo "Hello world" > foo.txt
+# ./mongofiles put foo.txt
+# ./mongofiles list
+# rm foo.txt
+# ./mongofiles get foo.txt
+# cat foo.txt
+# 还有search和delete操作
+
+# fs = gridfs.GridFS(db)
+# file_id = fs.put("Hello world", filename="foo.txt")
+# fs.list()
+# fs.get(file_id).read()
+
+
 
 
