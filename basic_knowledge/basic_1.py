@@ -10,6 +10,7 @@ import datetime
 import random
 import gridfs
 from ConfigObject.tests.config import filename
+from bsddb import db
 
 
 client = MongoClient()
@@ -355,6 +356,57 @@ post = {
 # fs.list()
 # fs.get(file_id).read()
 
+# 聚合
+# 统计杂志作者前5名的书
+db.hgd.aggregate({"$project": {"author": 1}}, {"$group": {"_id": "$author", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}, {"$limit": 5})
+# aggregate()返回一个文档数组，内容是发表文章最多的5个作者
+# $match
+{"$match": {"state": "shanghai"}}
+# $project
+db.hgd.aggregate({"$project": {"author": 1, "_id": 0}})
+# 可以将投射过的字段进行重命名   $_id回替换成_id的值
+db.hgd.aggregate({"$project": {"userId": "$_id", '_id': 0}})
+# 数学表达式
+db.hgd.aggregate({"$project": {"totalPay": {"$add": ["$salary", "$bonus"]}}})
+db.hgd.aggregate({"$project": {"totalPay": {"$subtract": [{"$add": ["$salary", "$bonus"]}, "$401k"]}}})
+# $add 接受一个或者多个表达式  将这些表达式的值相加
+# $subtract 相减
+# $multiply 相乘
+# $divide 商作为结果返回
+# $mod 余数作为结果返回
 
+# 日期表达式
+# "$year" "$month" "$week" "$dayofMonth" "$dayofWeek" "$dayofYear" "$hour" "$minute" "$second"
+db.hgd.aggregate({"$project": {"hiredIn": {"$month": "$hireDate"}}})
+# db.hgd.aggregate({"$project": {"tenure": {"$subtract": [{"$year": new Date()}, {"$year": "$hireDate"}]}}})
 
+# 字符串表达式
+# "$substr" "$concat"(将多个表达式或字符串连接一起作为返回结果) "$toLower" "$toUpper"
+db.hgd.aggregate({"$project": {"email": {"$concat": [{"$substr": ["$firstName", 0, 1]}, ".", "$lastName", "@example.com"]}}})
 
+# 逻辑表达式
+# "$cmp": [exp1, exp2] (exp1==exp2 return 0  exp1 < exp2 return -1)
+# "$strcasecmp": [string1, string2] 区分大小写，对罗马字符有效
+# "$eq"/"$ne"/"$gt"/"$gte"/"$lt"/"$lte": [exp1, exp2]
+# "$and": [exp1, ....expn]
+# "$or"
+# "$not"
+# "$cond": [booleanExpr, trueExpr, falseExpr] 如果booleanExpr的值是true 返回trueExpr 否则返回falseExpr
+# "$ifNull": [expr, replacementExpr] 如果expr是null 返回replacementExpr 否则返回expr
+db.hgd.aggregate({"$project": {
+    "grade": {
+        "$cond": [
+            "$teachersPet",
+            100,
+            {
+             "$add": [
+                    {"$multiply": [.1, "$attendanceAvg"]},
+                    {"$multiply": [.3, "$quizzAvg"]},
+                    {"$multiply": [.6, "$testAvg"]}
+                ]
+            }
+        ]
+    }
+}})
+
+# $group分组
