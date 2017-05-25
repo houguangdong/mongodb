@@ -9,8 +9,7 @@ from pymongo import MongoClient
 import datetime
 import random
 import gridfs
-from ConfigObject.tests.config import filename
-from bsddb import db
+from itertools import count
 
 
 client = MongoClient()
@@ -358,17 +357,17 @@ post = {
 
 # 聚合
 # 统计杂志作者前5名的书
-db.hgd.aggregate({"$project": {"author": 1}}, {"$group": {"_id": "$author", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}, {"$limit": 5})
+# db.hgd.aggregate({"$project": {"author": 1}}, {"$group": {"_id": "$author", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}, {"$limit": 5})
 # aggregate()返回一个文档数组，内容是发表文章最多的5个作者
 # $match
-{"$match": {"state": "shanghai"}}
+# {"$match": {"state": "shanghai"}}
 # $project
-db.hgd.aggregate({"$project": {"author": 1, "_id": 0}})
+# db.hgd.aggregate({"$project": {"author": 1, "_id": 0}})
 # 可以将投射过的字段进行重命名   $_id回替换成_id的值
-db.hgd.aggregate({"$project": {"userId": "$_id", '_id': 0}})
+# db.hgd.aggregate({"$project": {"userId": "$_id", '_id': 0}})
 # 数学表达式
-db.hgd.aggregate({"$project": {"totalPay": {"$add": ["$salary", "$bonus"]}}})
-db.hgd.aggregate({"$project": {"totalPay": {"$subtract": [{"$add": ["$salary", "$bonus"]}, "$401k"]}}})
+# db.hgd.aggregate({"$project": {"totalPay": {"$add": ["$salary", "$bonus"]}}})
+# db.hgd.aggregate({"$project": {"totalPay": {"$subtract": [{"$add": ["$salary", "$bonus"]}, "$401k"]}}})
 # $add 接受一个或者多个表达式  将这些表达式的值相加
 # $subtract 相减
 # $multiply 相乘
@@ -377,12 +376,12 @@ db.hgd.aggregate({"$project": {"totalPay": {"$subtract": [{"$add": ["$salary", "
 
 # 日期表达式
 # "$year" "$month" "$week" "$dayofMonth" "$dayofWeek" "$dayofYear" "$hour" "$minute" "$second"
-db.hgd.aggregate({"$project": {"hiredIn": {"$month": "$hireDate"}}})
+# db.hgd.aggregate({"$project": {"hiredIn": {"$month": "$hireDate"}}})
 # db.hgd.aggregate({"$project": {"tenure": {"$subtract": [{"$year": new Date()}, {"$year": "$hireDate"}]}}})
 
 # 字符串表达式
 # "$substr" "$concat"(将多个表达式或字符串连接一起作为返回结果) "$toLower" "$toUpper"
-db.hgd.aggregate({"$project": {"email": {"$concat": [{"$substr": ["$firstName", 0, 1]}, ".", "$lastName", "@example.com"]}}})
+# db.hgd.aggregate({"$project": {"email": {"$concat": [{"$substr": ["$firstName", 0, 1]}, ".", "$lastName", "@example.com"]}}})
 
 # 逻辑表达式
 # "$cmp": [exp1, exp2] (exp1==exp2 return 0  exp1 < exp2 return -1)
@@ -393,20 +392,160 @@ db.hgd.aggregate({"$project": {"email": {"$concat": [{"$substr": ["$firstName", 
 # "$not"
 # "$cond": [booleanExpr, trueExpr, falseExpr] 如果booleanExpr的值是true 返回trueExpr 否则返回falseExpr
 # "$ifNull": [expr, replacementExpr] 如果expr是null 返回replacementExpr 否则返回expr
-db.hgd.aggregate({"$project": {
-    "grade": {
-        "$cond": [
-            "$teachersPet",
-            100,
-            {
-             "$add": [
-                    {"$multiply": [.1, "$attendanceAvg"]},
-                    {"$multiply": [.3, "$quizzAvg"]},
-                    {"$multiply": [.6, "$testAvg"]}
-                ]
-            }
-        ]
-    }
-}})
+# db.hgd.aggregate({"$project": {
+#     "grade": {
+#         "$cond": [
+#             "$teachersPet",
+#             100,
+#             {
+#              "$add": [
+#                     {"$multiply": [.1, "$attendanceAvg"]},
+#                     {"$multiply": [.3, "$quizzAvg"]},
+#                     {"$multiply": [.6, "$testAvg"]}
+#                 ]
+#             }
+#         ]
+#     }
+# }})
 
 # $group分组
+# {"$group": {"_id": "$day"}}
+# {"$group": {"_id": "$grade"}}
+# {"$group": {"_id": {"state": "$state", "city": "$city"}}}
+
+# 1 算术操作符
+# db.hgd.aggregate({
+#     "$group": {
+#         "_id": "$country",
+#         "totalRevenue": {"$sum": "$revenue"}
+#     }
+# })
+# 2 # "$avg": value
+# db.hgd.aggregate({
+#     "$group": {
+#         "_id": "$country",
+#         "totalRevenue": {"$avg": "$revenue"},
+#         "numSales": {"$sum": 1}
+#     }
+# })
+# 3 极值操作符
+# "$max": expr
+# "$min": expr
+# "$first": expr
+# "$last": expr
+# db.hgd.aggregate({"$group": {"_id": "$grade", "lowestScore": {"$min": "$score"}, "highestScore": {"$max": "$score"}}})
+# db.hgd.aggregate({"$sort": 1}, {"$group": {"_id": "$grade", "lowestScore": {"$first": "$score"}, "highestScore": {"$last": "$score"}}})
+# 4 数组操作符
+# "$addToSet": expr
+# "$push": expr
+
+# $unwind可以将数组中的每一个值拆分为单独的文档
+# db.hgd.aggregate({"$unwind": "$comments"})
+# db.hgd.aggregate({"$project": {"comments": "$comments"}}, {"$unwind": "$comments"}, {"$match": {"comments.author": "Mark"}})
+
+# $sort
+# db.hgd.aggregate({"$project": {"compensation": {"$add": ["$salary": "$bonus"]}, "name": 1}}, {"$sort": {"compensation": -1, "name": 1}})
+
+# $limit
+# $skip
+
+# MapReduce
+# map = function() {
+#     for (var key in this) {
+#         emit(key, {count: 1});
+#     }
+# }
+
+# reduce = function(key, emits) {
+#     total = 0
+#     for (var i in emits) {
+#         total += emits[i].count;
+#     }
+#     return {"count": total};
+# }
+
+# r1 = reduce("x", [{count: 1, id: 1}, {count: 1, id: 2}])
+# r2 = reduce("x", [{count: 1, id: 3}])
+# reduce("x", [r1, r2])
+
+# mr = db.runCommand({"mapreduce": "foo", "map": map, "reduce": reduce})
+
+# 网页分类
+# map = function() {
+#     for (var i in this.tags){
+#         var recency = 1/(new Date() - this.date);
+#         var score = recency * this.score
+#         emit(this.tags[i], {"urls": [this.url], "score": score});
+#     }
+# }
+
+# reduce = function(key, emits) {
+#     var total = {urls: [], score: 0}
+#     for (var i in emits){
+#         emits[i].urls.forEach(function(utl){
+#             total.urls.push(url);
+#         })
+#         total.score += emits[i].score;
+#     }
+#     return total;
+# }
+
+# db.runCommand({"mapreduce": "analytics", "map": map, "reduce": reduce, "query": {"date": {"$gt": week_ago}}})
+# db.runCommand({"mapreduce": "analytics", "map": map, "reduce": reduce, "limit": 10000, "sort": {"date": -1}})
+
+# 使用作用域
+# db.runCommand({"mapreduce": "webpages", "map": map, "reduce": reduce, "scope": {now: new Date()}})
+# 这样就能在map函数中计算1/(now - this.date)
+
+# 聚合命令
+# 1 count
+# db.foo.count()
+# db.foo.insert({"x": 1})
+# db.foo.count()
+ 
+# 2 distinct
+# db.runCommand({"distinct": "people", "key": "age"})
+# db.runCommand({"group": {
+#     "ns": "stocks", # 集合名
+#     "key": "day",  # 分组条件
+#     "initial": {"time": 0},
+#     "$reduce": function(doc, prev) {
+#         if (doc.time > prev.time){
+#             prev.price = doc.price;
+#             prev.time = doc.time;
+#         }
+#     }
+#     "condition": {"day": {"$gt": "2010/09/30"}}
+# }})
+
+# 1 使用完成器
+# db.runCommand({"group": {
+#     "ns": "posts",
+#     "key": {"day": true},
+#     "initial": {"tags": {}},
+#     "$reduce": function(doc, prev) {
+#         for (i in doc.tags){
+#             if (doc.tags[i] in prev.tags){
+#                 prev.tags[doc.tags[i]]++;
+#             } else {
+#                 prev.tags[doc.tags[i]] = 1;
+#             }
+#         }
+#     },
+#     "finalize": function(prev) {
+#         var mostPopular = 0;
+#         for (i in prev.tags){
+#             if (prev.tags[i] > mostPopular){
+#                 prev.tag = i;
+#                 mostPopular = prev.tags[i];
+#             }
+#         }
+#         delete prev.tags
+#     }
+# }})
+# 2 将函数作为键使用
+# db.posts.group({"ns": "posts", 
+#                 "$keyf": function(x) { return x.category.toLowerCase();},
+#                 "initializer": "ccc"
+# })
+
