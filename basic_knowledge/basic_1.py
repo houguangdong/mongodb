@@ -549,3 +549,98 @@ post = {
 #                 "initializer": "ccc"
 # })
 
+# 启动无数据库的连接的客户端
+# mongo --nodb
+# 创建副本集
+# replicaSet = new replicaSet({"nodes":3})
+# 启动3个mongod进程
+# replicaSet.startSet()
+# 配置复制功能
+# replicaSet.initiate()
+
+# 第二个shell窗口
+# conn1 = new Mongo("localhost: 20000")
+# primaryDB = conn1.getDB("test")
+# primaryDB.isMaster()
+
+# for (i=0; i<10000; i++){
+#     primaryDB.coll.insert({count: i})
+# }
+# 检查集合的文档数量，是否插入成功
+# primaryDB.coll.count()
+# 看看副本集 是否被写入了
+# conn2 = new Mongo("localhost:20001")
+# secondaryDB = conn2.getDB("test")
+# 备份节点做查询，或提示不是主节点的错误
+# secondaryDB.coll.find()
+# 设置从备份节点读取信息没有问题
+# conn2.setSlaveOk()
+# secondaryDB.coll.count()
+# 试着执行写入操作 备份节点不能写入数据只能通过复制功能写入数据
+# secondaryDB.coll.insert({"count": 10001})
+# secondaryDB.runCommand({"getLastError": 1})
+
+# 自动故障转移 如果主节点挂了，备份节点自动选举为主节点 先关闭主节点
+# primaryDB.adminCommand({"shutdown": 1})
+# secondaryDB.isMaster()
+
+# 执行下面的命令可以关掉副本集
+# replicaSet.stopSet()
+
+# 配置副本集 使用--replSet name 选项重启server-1. spock是名字
+# mongod --replSet spock -f mongod.conf --fork
+# ssh server-2
+# mongod --replSet spock -f mongod.conf --fork
+# exit
+# ssh server-3
+# mongod --replSet spock -f mongod.conf --fork
+# exit
+
+# 创建配置文件
+# config = {
+#     "_id": "spock",
+#     "members": [
+#         {"_id": 0, "host": "server-1:27017"},
+#         {"_id": 1, "host": "server-2:27017"},
+#         {"_id": 2, "host": "server-3:27017"}
+#     ]
+# }
+
+# 连接到server-1
+# db = (new Mongo("server-1:27017")).getDB("test")
+# 用配置初始化副本集
+# rs.initiate(config)
+
+# rs辅助函数 rs是一个全局变量
+# rs.initiate(config)
+# db.adminCommand({"replSetInitiate": config})
+
+# 修改腹部集配置
+# rs.add 为副本集添加新成员
+# rs.add("server-4:27017")
+# rs.remove("server-1:27017")
+# 查看现有的副本集配置信息 版本号自增1
+# rs.config()
+# 修改配置信息
+# var config = rs.config()
+# config.members[1].host = "server-2:27017"
+# rs.reconfig(config)
+
+# 选举仲裁者
+# 启动仲裁者和启动普通mongod的方式相同，使用--replSet副本集名称和空的数据目录
+# rs.addArb("server-5:27017")
+# 也可以在成员配置中指定arbiterOnly选项，效果同上
+# rs.add({"_id": 4, "host": "server-5:27017", "arbiterOnly": true})
+
+# 设置优先级
+# rs.add({"_id": 4, "host": "server-4:27017", "priority": 1.5})
+
+# 隐藏成员
+# rs.isMaster()
+# var config = rs.config()
+# config.members[2].hidden = 0
+# config.members[2].priority = 0
+# rs.reconfig(config)
+
+# rs.status(), rs.config()
+
