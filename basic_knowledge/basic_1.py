@@ -9,8 +9,7 @@ from pymongo import MongoClient
 import datetime
 import random
 import gridfs
-from ConfigObject.tests.config import filename
-from bsddb import db
+from itertools import count
 
 
 client = MongoClient()
@@ -358,17 +357,17 @@ post = {
 
 # 聚合
 # 统计杂志作者前5名的书
-db.hgd.aggregate({"$project": {"author": 1}}, {"$group": {"_id": "$author", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}, {"$limit": 5})
+# db.hgd.aggregate({"$project": {"author": 1}}, {"$group": {"_id": "$author", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}, {"$limit": 5})
 # aggregate()返回一个文档数组，内容是发表文章最多的5个作者
 # $match
-{"$match": {"state": "shanghai"}}
+# {"$match": {"state": "shanghai"}}
 # $project
-db.hgd.aggregate({"$project": {"author": 1, "_id": 0}})
+# db.hgd.aggregate({"$project": {"author": 1, "_id": 0}})
 # 可以将投射过的字段进行重命名   $_id回替换成_id的值
-db.hgd.aggregate({"$project": {"userId": "$_id", '_id': 0}})
+# db.hgd.aggregate({"$project": {"userId": "$_id", '_id': 0}})
 # 数学表达式
-db.hgd.aggregate({"$project": {"totalPay": {"$add": ["$salary", "$bonus"]}}})
-db.hgd.aggregate({"$project": {"totalPay": {"$subtract": [{"$add": ["$salary", "$bonus"]}, "$401k"]}}})
+# db.hgd.aggregate({"$project": {"totalPay": {"$add": ["$salary", "$bonus"]}}})
+# db.hgd.aggregate({"$project": {"totalPay": {"$subtract": [{"$add": ["$salary", "$bonus"]}, "$401k"]}}})
 # $add 接受一个或者多个表达式  将这些表达式的值相加
 # $subtract 相减
 # $multiply 相乘
@@ -377,12 +376,12 @@ db.hgd.aggregate({"$project": {"totalPay": {"$subtract": [{"$add": ["$salary", "
 
 # 日期表达式
 # "$year" "$month" "$week" "$dayofMonth" "$dayofWeek" "$dayofYear" "$hour" "$minute" "$second"
-db.hgd.aggregate({"$project": {"hiredIn": {"$month": "$hireDate"}}})
+# db.hgd.aggregate({"$project": {"hiredIn": {"$month": "$hireDate"}}})
 # db.hgd.aggregate({"$project": {"tenure": {"$subtract": [{"$year": new Date()}, {"$year": "$hireDate"}]}}})
 
 # 字符串表达式
 # "$substr" "$concat"(将多个表达式或字符串连接一起作为返回结果) "$toLower" "$toUpper"
-db.hgd.aggregate({"$project": {"email": {"$concat": [{"$substr": ["$firstName", 0, 1]}, ".", "$lastName", "@example.com"]}}})
+# db.hgd.aggregate({"$project": {"email": {"$concat": [{"$substr": ["$firstName", 0, 1]}, ".", "$lastName", "@example.com"]}}})
 
 # 逻辑表达式
 # "$cmp": [exp1, exp2] (exp1==exp2 return 0  exp1 < exp2 return -1)
@@ -393,20 +392,255 @@ db.hgd.aggregate({"$project": {"email": {"$concat": [{"$substr": ["$firstName", 
 # "$not"
 # "$cond": [booleanExpr, trueExpr, falseExpr] 如果booleanExpr的值是true 返回trueExpr 否则返回falseExpr
 # "$ifNull": [expr, replacementExpr] 如果expr是null 返回replacementExpr 否则返回expr
-db.hgd.aggregate({"$project": {
-    "grade": {
-        "$cond": [
-            "$teachersPet",
-            100,
-            {
-             "$add": [
-                    {"$multiply": [.1, "$attendanceAvg"]},
-                    {"$multiply": [.3, "$quizzAvg"]},
-                    {"$multiply": [.6, "$testAvg"]}
-                ]
-            }
-        ]
-    }
-}})
+# db.hgd.aggregate({"$project": {
+#     "grade": {
+#         "$cond": [
+#             "$teachersPet",
+#             100,
+#             {
+#              "$add": [
+#                     {"$multiply": [.1, "$attendanceAvg"]},
+#                     {"$multiply": [.3, "$quizzAvg"]},
+#                     {"$multiply": [.6, "$testAvg"]}
+#                 ]
+#             }
+#         ]
+#     }
+# }})
 
 # $group分组
+# {"$group": {"_id": "$day"}}
+# {"$group": {"_id": "$grade"}}
+# {"$group": {"_id": {"state": "$state", "city": "$city"}}}
+
+# 1 算术操作符
+# db.hgd.aggregate({
+#     "$group": {
+#         "_id": "$country",
+#         "totalRevenue": {"$sum": "$revenue"}
+#     }
+# })
+# 2 # "$avg": value
+# db.hgd.aggregate({
+#     "$group": {
+#         "_id": "$country",
+#         "totalRevenue": {"$avg": "$revenue"},
+#         "numSales": {"$sum": 1}
+#     }
+# })
+# 3 极值操作符
+# "$max": expr
+# "$min": expr
+# "$first": expr
+# "$last": expr
+# db.hgd.aggregate({"$group": {"_id": "$grade", "lowestScore": {"$min": "$score"}, "highestScore": {"$max": "$score"}}})
+# db.hgd.aggregate({"$sort": 1}, {"$group": {"_id": "$grade", "lowestScore": {"$first": "$score"}, "highestScore": {"$last": "$score"}}})
+# 4 数组操作符
+# "$addToSet": expr
+# "$push": expr
+
+# $unwind可以将数组中的每一个值拆分为单独的文档
+# db.hgd.aggregate({"$unwind": "$comments"})
+# db.hgd.aggregate({"$project": {"comments": "$comments"}}, {"$unwind": "$comments"}, {"$match": {"comments.author": "Mark"}})
+
+# $sort
+# db.hgd.aggregate({"$project": {"compensation": {"$add": ["$salary": "$bonus"]}, "name": 1}}, {"$sort": {"compensation": -1, "name": 1}})
+
+# $limit
+# $skip
+
+# MapReduce
+# map = function() {
+#     for (var key in this) {
+#         emit(key, {count: 1});
+#     }
+# }
+
+# reduce = function(key, emits) {
+#     total = 0
+#     for (var i in emits) {
+#         total += emits[i].count;
+#     }
+#     return {"count": total};
+# }
+
+# r1 = reduce("x", [{count: 1, id: 1}, {count: 1, id: 2}])
+# r2 = reduce("x", [{count: 1, id: 3}])
+# reduce("x", [r1, r2])
+
+# mr = db.runCommand({"mapreduce": "foo", "map": map, "reduce": reduce})
+
+# 网页分类
+# map = function() {
+#     for (var i in this.tags){
+#         var recency = 1/(new Date() - this.date);
+#         var score = recency * this.score
+#         emit(this.tags[i], {"urls": [this.url], "score": score});
+#     }
+# }
+
+# reduce = function(key, emits) {
+#     var total = {urls: [], score: 0}
+#     for (var i in emits){
+#         emits[i].urls.forEach(function(utl){
+#             total.urls.push(url);
+#         })
+#         total.score += emits[i].score;
+#     }
+#     return total;
+# }
+
+# db.runCommand({"mapreduce": "analytics", "map": map, "reduce": reduce, "query": {"date": {"$gt": week_ago}}})
+# db.runCommand({"mapreduce": "analytics", "map": map, "reduce": reduce, "limit": 10000, "sort": {"date": -1}})
+
+# 使用作用域
+# db.runCommand({"mapreduce": "webpages", "map": map, "reduce": reduce, "scope": {now: new Date()}})
+# 这样就能在map函数中计算1/(now - this.date)
+
+# 聚合命令
+# 1 count
+# db.foo.count()
+# db.foo.insert({"x": 1})
+# db.foo.count()
+ 
+# 2 distinct
+# db.runCommand({"distinct": "people", "key": "age"})
+# db.runCommand({"group": {
+#     "ns": "stocks", # 集合名
+#     "key": "day",  # 分组条件
+#     "initial": {"time": 0},
+#     "$reduce": function(doc, prev) {
+#         if (doc.time > prev.time){
+#             prev.price = doc.price;
+#             prev.time = doc.time;
+#         }
+#     }
+#     "condition": {"day": {"$gt": "2010/09/30"}}
+# }})
+
+# 1 使用完成器
+# db.runCommand({"group": {
+#     "ns": "posts",
+#     "key": {"day": true},
+#     "initial": {"tags": {}},
+#     "$reduce": function(doc, prev) {
+#         for (i in doc.tags){
+#             if (doc.tags[i] in prev.tags){
+#                 prev.tags[doc.tags[i]]++;
+#             } else {
+#                 prev.tags[doc.tags[i]] = 1;
+#             }
+#         }
+#     },
+#     "finalize": function(prev) {
+#         var mostPopular = 0;
+#         for (i in prev.tags){
+#             if (prev.tags[i] > mostPopular){
+#                 prev.tag = i;
+#                 mostPopular = prev.tags[i];
+#             }
+#         }
+#         delete prev.tags
+#     }
+# }})
+# 2 将函数作为键使用
+# db.posts.group({"ns": "posts", 
+#                 "$keyf": function(x) { return x.category.toLowerCase();},
+#                 "initializer": "ccc"
+# })
+
+# 启动无数据库的连接的客户端
+# mongo --nodb
+# 创建副本集
+# replicaSet = new replicaSet({"nodes":3})
+# 启动3个mongod进程
+# replicaSet.startSet()
+# 配置复制功能
+# replicaSet.initiate()
+
+# 第二个shell窗口
+# conn1 = new Mongo("localhost: 20000")
+# primaryDB = conn1.getDB("test")
+# primaryDB.isMaster()
+
+# for (i=0; i<10000; i++){
+#     primaryDB.coll.insert({count: i})
+# }
+# 检查集合的文档数量，是否插入成功
+# primaryDB.coll.count()
+# 看看副本集 是否被写入了
+# conn2 = new Mongo("localhost:20001")
+# secondaryDB = conn2.getDB("test")
+# 备份节点做查询，或提示不是主节点的错误
+# secondaryDB.coll.find()
+# 设置从备份节点读取信息没有问题
+# conn2.setSlaveOk()
+# secondaryDB.coll.count()
+# 试着执行写入操作 备份节点不能写入数据只能通过复制功能写入数据
+# secondaryDB.coll.insert({"count": 10001})
+# secondaryDB.runCommand({"getLastError": 1})
+
+# 自动故障转移 如果主节点挂了，备份节点自动选举为主节点 先关闭主节点
+# primaryDB.adminCommand({"shutdown": 1})
+# secondaryDB.isMaster()
+
+# 执行下面的命令可以关掉副本集
+# replicaSet.stopSet()
+
+# 配置副本集 使用--replSet name 选项重启server-1. spock是名字
+# mongod --replSet spock -f mongod.conf --fork
+# ssh server-2
+# mongod --replSet spock -f mongod.conf --fork
+# exit
+# ssh server-3
+# mongod --replSet spock -f mongod.conf --fork
+# exit
+
+# 创建配置文件
+# config = {
+#     "_id": "spock",
+#     "members": [
+#         {"_id": 0, "host": "server-1:27017"},
+#         {"_id": 1, "host": "server-2:27017"},
+#         {"_id": 2, "host": "server-3:27017"}
+#     ]
+# }
+
+# 连接到server-1
+# db = (new Mongo("server-1:27017")).getDB("test")
+# 用配置初始化副本集
+# rs.initiate(config)
+
+# rs辅助函数 rs是一个全局变量
+# rs.initiate(config)
+# db.adminCommand({"replSetInitiate": config})
+
+# 修改腹部集配置
+# rs.add 为副本集添加新成员
+# rs.add("server-4:27017")
+# rs.remove("server-1:27017")
+# 查看现有的副本集配置信息 版本号自增1
+# rs.config()
+# 修改配置信息
+# var config = rs.config()
+# config.members[1].host = "server-2:27017"
+# rs.reconfig(config)
+
+# 选举仲裁者
+# 启动仲裁者和启动普通mongod的方式相同，使用--replSet副本集名称和空的数据目录
+# rs.addArb("server-5:27017")
+# 也可以在成员配置中指定arbiterOnly选项，效果同上
+# rs.add({"_id": 4, "host": "server-5:27017", "arbiterOnly": true})
+
+# 设置优先级
+# rs.add({"_id": 4, "host": "server-4:27017", "priority": 1.5})
+
+# 隐藏成员
+# rs.isMaster()
+# var config = rs.config()
+# config.members[2].hidden = 0
+# config.members[2].priority = 0
+# rs.reconfig(config)
+
+# rs.status(), rs.config()
+
